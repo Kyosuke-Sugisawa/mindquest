@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
@@ -12,7 +12,6 @@ app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# 質問データ（32問）
 questions = [
     ("物事を分析しすぎて、決断が遅くなることがある", ["賢者"]),
     ("計画を立ててからでないと動けないことが多い", ["賢者"]),
@@ -52,7 +51,7 @@ with open("type_data.json", encoding="utf-8") as f:
     type_data = json.load(f)
 
 def analyze_written_personality(written_text):
-    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜5点の補正を提案し、コメントを述べてください。
+    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜3点の補正を提案し、コメントを述べてください。
 
 タイプ一覧：賢者、武闘家、僧侶、魔法使い、盗賊、芸術家、守護者、指揮官
 
@@ -70,7 +69,10 @@ def analyze_written_personality(written_text):
         if not response.text.strip():
             return {"補正": {}, "コメント": "（空欄のためコメントなし）"}
         cleaned = re.sub(r"```json|```", "", response.text.strip())
-        return json.loads(cleaned)
+        try:
+            return json.loads(cleaned)
+        except:
+            return {"補正": {}, "コメント": cleaned}
     except Exception as e:
         return {"補正": {}, "コメント": f"[エラー]: {e}"}
 
@@ -105,17 +107,19 @@ def result():
             elif ans == "maybe":
                 raw_score[t] += 1
 
-    for key in ["written1", "written2", "written3"]:
-        txt = request.form.get(key, "").strip()
-        if txt:
-            analysis = analyze_written_personality(txt)
-            if isinstance(analysis, dict) and analysis.get("補正") and analysis.get("コメント"):
+    written_inputs = [request.form.get(k, "").strip() for k in ["written1", "written2", "written3"]]
+    combined_text = "\n".join([txt for txt in written_inputs if txt])
+
+    if combined_text:
+        analysis = analyze_written_personality(combined_text)
+        if isinstance(analysis, dict):
+            if "補正" in analysis:
                 for t, val in analysis["補正"].items():
                     if t in bonus_score:
                         bonus_score[t] += val
+            if "コメント" in analysis:
                 comments.append(analysis["コメント"])
-
-    if not comments:
+    else:
         comments.append("自由記述が未入力のため、コメントはありません。")
 
     total_score = {t: raw_score[t] + bonus_score[t] for t in types}
