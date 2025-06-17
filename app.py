@@ -84,9 +84,9 @@ def index():
 def start():
     return render_template("start.html", questions=questions)
 
-@app.route("/guide")
-def guide():
-    return render_template("guide.html")
+@app.route('/types')
+def show_types():
+    return render_template('types.html')
 
 @app.route("/chat")
 def chat():
