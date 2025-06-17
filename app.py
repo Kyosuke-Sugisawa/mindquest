@@ -51,7 +51,7 @@ with open("type_data.json", encoding="utf-8") as f:
     type_data = json.load(f)
 
 def analyze_written_personality(written_text):
-    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜3点の補正を提案し、コメントを述べてください。
+    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜5点の補正を提案し、コメントを述べてください。
 
 タイプ一覧：賢者、武闘家、僧侶、魔法使い、盗賊、芸術家、守護者、指揮官
 
