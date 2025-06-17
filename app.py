@@ -48,13 +48,11 @@ questions = [
     ("人を導いたり、指示を出す立場になることが多い", ["指揮官"])
 ]
 
-# タイプ情報読み込み
 with open("type_data.json", encoding="utf-8") as f:
     type_data = json.load(f)
 
-# Geminiチャット補助関数
 def analyze_written_personality(written_text):
-    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜3点の補正を提案し、コメントを述べてください。
+    prompt = f"""以下の自由記述から、当てはまりそうな性格タイプを最大2つ選び、それぞれに1〜5点の補正を提案し、コメントを述べてください。
 
 タイプ一覧：賢者、武闘家、僧侶、魔法使い、盗賊、芸術家、守護者、指揮官
 
@@ -65,11 +63,12 @@ def analyze_written_personality(written_text):
   "補正": {{"賢者": 2, "守護者": 1}},
   "コメント": "あなたの慎重で安定を重視する傾向は賢者と守護者タイプに近いです。"
 }}"""
-
     try:
         model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
         chat = model.start_chat()
         response = chat.send_message(prompt)
+        if not response.text.strip():
+            return {"補正": {}, "コメント": "（空欄のためコメントなし）"}
         cleaned = re.sub(r"```json|```", "", response.text.strip())
         return json.loads(cleaned)
     except Exception as e:
@@ -110,10 +109,11 @@ def result():
         txt = request.form.get(key, "").strip()
         if txt:
             analysis = analyze_written_personality(txt)
-            for t, val in analysis.get("補正", {}).items():
-                if t in bonus_score:
-                    bonus_score[t] += val
-            comments.append(analysis.get("コメント", ""))
+            if isinstance(analysis, dict) and analysis.get("補正") and analysis.get("コメント"):
+                for t, val in analysis["補正"].items():
+                    if t in bonus_score:
+                        bonus_score[t] += val
+                comments.append(analysis["コメント"])
 
     if not comments:
         comments.append("自由記述が未入力のため、コメントはありません。")
@@ -137,5 +137,5 @@ def result():
     )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # ← 自動割り当て or fallback
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
