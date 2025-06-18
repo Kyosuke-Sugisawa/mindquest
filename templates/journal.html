@@ -3,42 +3,112 @@
 {% block title %}日記を書く{% endblock %}
 
 {% block content %}
+<style>
+  .journal-form {
+    margin-bottom: 2em;
+    text-align: center;
+  }
+
+  textarea {
+    width: 100%;
+    max-width: 700px;
+    height: 150px;
+    padding: 1em;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .journal-button {
+    margin-top: 1em;
+    padding: 0.6em 1.2em;
+    font-size: 1em;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .save-button {
+    background-color: #4CAF50;
+    color: white;
+  }
+
+  .analyze-button {
+    background-color: #2196F3;
+    color: white;
+  }
+
+  .entry-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 1em;
+    margin-bottom: 1.5em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  .entry-card time {
+    font-weight: bold;
+    color: #555;
+  }
+
+  .entry-card .feedback {
+    margin-top: 1em;
+    background: #eef;
+    padding: 0.8em;
+    border-radius: 6px;
+    color: #333;
+  }
+
+  .delete-button {
+    float: right;
+    font-size: 0.9em;
+    color: crimson;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .delete-button:hover {
+    text-decoration: underline;
+  }
+</style>
+
 <div class="container">
-    <h1>📝 日記を書く</h1>
+  <h1>📝 日記を書く</h1>
 
-    <form method="POST" action="/journal">
-        <textarea name="content" rows="8" cols="50" placeholder="今日感じたことや考えたことを書いてみよう..." required></textarea><br>
-        <button type="submit">保存する</button>
-    </form>
+  <form method="POST" action="/journal" class="journal-form">
+    <textarea name="content" placeholder="今日感じたことや考えたことを書いてみよう..." required></textarea><br>
+    <button type="submit" class="journal-button save-button">保存する</button>
+  </form>
 
-    <form method="POST" action="/journal/analyze">
-        <button type="submit" style="margin-top: 1em;">🧠 AIに分析してもらう</button>
-    </form>
+  <form method="POST" action="/journal/analyze" class="journal-form">
+    <button type="submit" class="journal-button analyze-button">🧠 AIに分析してもらう</button>
+  </form>
 
-    {% if analysis %}
-    <div style="margin-top: 2em; background: #f7f7f7; padding: 1em; border-radius: 8px;">
-        <h3>🧠 AIからのコメント</h3>
-        <p>{{ analysis }}</p>
-    </div>
+  {% if analysis %}
+  <div class="entry-card">
+    <h3>🧠 AIからのコメント</h3>
+    <p>{{ analysis }}</p>
+  </div>
+  {% endif %}
+
+  <h2>🗂 過去の日記</h2>
+
+  {% for entry in entries %}
+  <div class="entry-card">
+    <time>{{ entry.created_at }}</time><br>
+    <p>{{ entry.content|e }}</p>
+    {% if entry.feedback %}
+      <div class="feedback">🧠 AIコメント：{{ entry.feedback }}</div>
     {% endif %}
-
-    <h2 style="margin-top: 2em;">🗂 過去の日記</h2>
-    <ul>
-        {% for entry in entries %}
-        <li>
-            <strong>{{ entry.created_at }}</strong><br>
-            {{ entry.content|e }}<br>
-            {% if entry.feedback %}
-                <div style="margin-top: 0.5em; background: #eef; padding: 0.5em; border-radius: 5px;">
-                    <em>🧠 AIコメント：</em> {{ entry.feedback }}
-                </div>
-            {% endif %}
-            <form method="POST" action="/journal/delete" style="display:inline;">
-                <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                <button type="submit" style="font-size: 0.8em; color: red; border: none; background: none; cursor: pointer;">🗑️ 削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+    <form method="POST" action="/journal/delete">
+      <input type="hidden" name="entry_id" value="{{ entry.id }}">
+      <button type="submit" class="delete-button">🗑️ 削除</button>
+    </form>
+  </div>
+  {% endfor %}
 </div>
 {% endblock %}
