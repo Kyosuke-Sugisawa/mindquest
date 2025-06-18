@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}マインドクエスト{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% if request.path != '/' %}
+    <header class="navbar">
+        <nav>
+            <a href="javascript:history.back()">🔙 ひとつ戻る</a>
+            <a href="/menu">🏠 メニューへ</a>
+            <a href="/">🎮 タイトルへ戻る</a>
+        </nav>
+    </header>
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
