@@ -324,6 +324,25 @@ def journal_save():
     conn.close()
     return redirect("/journal")
 
+@app.route("/journal/delete", methods=["POST"])
+def journal_delete():
+    token = request.cookies.get("user_token")
+    if not token:
+        return redirect("/register")
+
+    entry_id = request.form.get("entry_id")
+    if not entry_id:
+        return redirect("/journal")
+
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM journal WHERE id = ? AND user_token = ?", (entry_id, token))
+    conn.commit()
+    conn.close()
+
+    return redirect("/journal")
+
+
 @app.route("/journal/feedback", methods=["POST"])
 def journal_feedback():
     token = request.cookies.get("user_token")
