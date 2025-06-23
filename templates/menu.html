@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}メニュー画面{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>ようこそ、{{ name }}さん！</h1>
+    <p>あなたのタイプ：<strong>{{ user_type }}</strong></p>
+    <p>レベル：<strong>Lv.{{ level }}</strong></p>
+
+    <div class="menu">
+       <a href="/start" class="menu-button">🧪 診断を受ける</a>
+       <a href="/quest" class="menu-button">🗺 クエストに行く</a>
+       <a href="/journal" class="menu-button">📝 日記を書く</a>
+       <a href="/types" class="menu-button">📜 性格一覧を見る</a>
+    </div>
+</div>
+{% endblock %}
