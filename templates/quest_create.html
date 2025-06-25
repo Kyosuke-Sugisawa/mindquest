@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>クエスト作成・編集</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 2em;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      border-radius: 10px;
+      padding: 2em;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5em;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.6em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-top: 0.5em;
+    }
+    button {
+      margin-top: 1.5em;
+      padding: 0.8em 2em;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    .step {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 1em;
+      padding-top: 3em;
+      margin-top: 1em;
+      background: #f4f4f4;
+      position: relative;
+    }
+    .add-btn {
+      background-color: #007bff;
+      margin-top: 1em;
+    }
+    .option-input {
+      margin-top: 0.5em;
+    }
+    .step-controls {
+      position: absolute;
+      top: 0.5em;
+      right: 0.5em;
+      background: #f4f4f4;
+      border-radius: 6px;
+      z-index: 1;
+    }
+    .step-controls button {
+      margin-left: 4px;
+      padding: 0.3em 0.6em;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>クエスト作成・編集</h1>
+  <form method="post">
+    <label for="title">タイトル</label>
+    <input type="text" id="title" name="title" required value="{{ title or '' }}">
+
+    <label for="description">説明</label>
+    <textarea id="description" name="description" rows="4">{{ description or '' }}</textarea>
+
+    <label for="type">タイプ</label>
+    <select id="type" name="type">
+      {% for key, label in type_labels.items() %}
+        <option value="{{ key }}" {% if selected_type == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <div id="steps-container"></div>
+
+    <button type="button" class="add-btn" onclick="addStep()">＋ ステップを追加</button>
+
+    <input type="hidden" name="steps_json" id="steps_json">
+    <button type="submit">保存する</button>
+  </form>
+</div>
+
+<script>
+const stepsContainer = document.getElementById("steps-container");
+const loadedSteps = {{ steps_json | safe }} || [];
+
+window.addEventListener("DOMContentLoaded", () => {
+  if (Array.isArray(loadedSteps)) {
+    loadedSteps.forEach(step => {
+      addStep(step.label, step.type, step);
+    });
+  }
+});
+
+function addStep(label = "", type = "記述式", stepData = {}) {
+  const div = document.createElement("div");
+  div.className = "step";
+
+  const labelInput = document.createElement("input");
+  labelInput.type = "text";
+  labelInput.placeholder = "ステップ内容";
+  labelInput.value = label;
+  labelInput.oninput = updateSteps;
+
+  const typeSelect = document.createElement("select");
+  ["記述式", "選択式", "グリッド式"].forEach(optText => {
+    const opt = document.createElement("option");
+    opt.value = optText;
+    opt.textContent = optText;
+    if (optText === type) opt.selected = true;
+    typeSelect.appendChild(opt);
+  });
+  typeSelect.onchange = () => {
+    renderOptionsInput(div, typeSelect.value, {});
+    updateSteps();
+  };
+
+  const controls = document.createElement("div");
+  controls.className = "step-controls";
+  controls.innerHTML = `
+    <button type="button" onclick="moveStep(this.parentNode.parentNode, -1)">⬆️</button>
+    <button type="button" onclick="moveStep(this.parentNode.parentNode, 1)">⬇️</button>
+    <button type="button" onclick="removeStep(this.parentNode.parentNode)">🗑</button>
+  `;
+
+  div.appendChild(controls);
+  div.appendChild(labelInput);
+  div.appendChild(typeSelect);
+  stepsContainer.appendChild(div);
+
+  renderOptionsInput(div, type, stepData);
+  updateSteps();
+}
+
+function removeStep(stepDiv) {
+  stepsContainer.removeChild(stepDiv);
+  updateSteps();
+}
+
+function moveStep(stepDiv, direction) {
+  const currentIndex = Array.from(stepsContainer.children).indexOf(stepDiv);
+  const newIndex = currentIndex + direction;
+  if (newIndex >= 0 && newIndex < stepsContainer.children.length) {
+    stepsContainer.insertBefore(stepDiv, stepsContainer.children[newIndex + (direction > 0 ? 1 : 0)]);
+    updateSteps();
+  }
+}
+
+function renderOptionsInput(container, type, stepData = {}) {
+  let existing = container.querySelector(".option-input");
+  if (existing) container.removeChild(existing);
+
+  const optDiv = document.createElement("div");
+  optDiv.className = "option-input";
+
+  if (type === "選択式") {
+    const list = document.createElement("div");
+    (stepData.options || []).forEach(opt => {
+      list.appendChild(createOptionInput(opt));
+    });
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.textContent = "＋選択肢を追加";
+    addBtn.style.marginTop = "0.5em";
+    addBtn.onclick = () => {
+      list.appendChild(createOptionInput(""));
+      updateSteps();
+    };
+
+    optDiv.appendChild(list);
+    optDiv.appendChild(addBtn);
+  }
+
+  if (type === "グリッド式") {
+    const rowLabel = document.createElement("label");
+    rowLabel.textContent = "行（横）";
+    const rowInput = document.createElement("input");
+    rowInput.type = "number";
+    rowInput.placeholder = "行数（横）";
+    rowInput.min = 1;
+    rowInput.className = "grid-rows";
+    rowInput.value = stepData.rows || 3;
+    rowInput.oninput = updateSteps;
+
+    const colLabel = document.createElement("label");
+    colLabel.textContent = "列（縦）";
+    const colInput = document.createElement("input");
+    colInput.type = "number";
+    colInput.placeholder = "列数（縦）";
+    colInput.min = 1;
+    colInput.className = "grid-cols";
+    colInput.value = stepData.cols || 3;
+    colInput.oninput = updateSteps;
+
+    optDiv.appendChild(rowLabel);
+    optDiv.appendChild(rowInput);
+    optDiv.appendChild(colLabel);
+    optDiv.appendChild(colInput);
+  }
+
+  container.appendChild(optDiv);
+}
+
+function createOptionInput(value) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "選択肢";
+  input.style.display = "block";
+  input.style.marginTop = "0.3em";
+  input.value = value;
+  input.oninput = updateSteps;
+  return input;
+}
+
+function updateSteps() {
+  const steps = [];
+  stepsContainer.querySelectorAll(".step").forEach(div => {
+    const label = div.querySelector("input[type='text']").value;
+    const type = div.querySelector("select").value;
+
+    const step = { label, type };
+
+    if (type === "選択式") {
+      const optionInputs = div.querySelectorAll(".option-input input[type='text']");
+      const options = Array.from(optionInputs).map(i => i.value.trim()).filter(Boolean);
+      if (options.length > 0) step.options = options;
+    }
+
+    if (type === "グリッド式") {
+      const rows = parseInt(div.querySelector(".grid-rows")?.value || "1");
+      const cols = parseInt(div.querySelector(".grid-cols")?.value || "1");
+      step.rows = rows;
+      step.cols = cols;
+    }
+
+    steps.push(step);
+  });
+
+  document.getElementById("steps_json").value = JSON.stringify(steps);
+}
+</script>
+</body>
+</html>

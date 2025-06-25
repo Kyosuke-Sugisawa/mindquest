@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}クエスト実行{% endblock %}
+
+{% block content %}
+<style>
+  .quest-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 2em;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  h2 {
+    text-align: center;
+    margin-bottom: 1em;
+    color: #5A8DEE;
+  }
+  .step-box {
+    margin-bottom: 2em;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+  }
+  textarea, input[type="text"] {
+    width: 100%;
+    padding: 0.8em;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1em;
+  }
+  td {
+    border: 1px solid #ccc;
+    padding: 0;
+  }
+</style>
+
+<div class="quest-container">
+  <h2>{{ quest.title }}</h2>
+  <form method="POST" action="/quest/{{ quest.id }}">
+    {% for step in steps %}
+      <div class="step-box">
+        <p><strong>ステップ{{ loop.index }}:</strong> {{ step.label }}</p>
+
+        {% if step.type in ['text', '記述式'] %}
+          <textarea name="step_{{ loop.index0 }}"></textarea>
+
+        {% elif step.type in ['choice', '選択式'] %}
+          {% for choice in step.options %}
+            <label>
+              <input type="radio" name="step_{{ loop.index0 }}" value="{{ choice }}">
+              {{ choice }}
+            </label><br>
+          {% endfor %}
+
+        {% elif step.type in ['grid', 'グリッド', 'グリッド式'] %}
+          <table>
+            {% for r in range(step.rows or 1) %}
+              <tr>
+                {% for c in range(step.cols or 1) %}
+                  <td><input type="text" name="step_{{ loop.index0 }}_{{ r }}_{{ c }}"></td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </table>
+
+        {% else %}
+          <p>未知のタイプ: {{ step.type }}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+    <div style="text-align: center;">
+      <button type="submit" style="padding: 10px 20px; font-size: 1em; background-color: #5A8DEE; color: white; border: none; border-radius: 6px; cursor: pointer;">送信</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
