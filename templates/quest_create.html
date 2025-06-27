@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>クエスト作成</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 2em;
+    }
+    form {
+      background: #fff;
+      padding: 2em;
+      max-width: 700px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 1.5em;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.5em;
+    }
+    input[type="text"], select, textarea, input[type="number"] {
+      width: 100%;
+      padding: 0.5em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      margin-bottom: 1em;
+    }
+    .step-block {
+      background: #eef1f7;
+      padding: 1em;
+      border-radius: 8px;
+      margin-bottom: 1em;
+    }
+    button {
+      padding: 0.5em 1em;
+      border: none;
+      border-radius: 6px;
+      background: #5A8DEE;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 0.5em;
+    }
+    button:hover {
+      background: #3f6ad8;
+    }
+  </style>
+</head>
+<body>
+  <form method="POST" action="{% if mode == 'edit' %}/admin/quests/update/{{ quest_id }}{% else %}/admin/quests/create{% endif %}">
+    <div class="form-group">
+      <label for="title">タイトル</label>
+      <input type="text" id="title" name="title" value="{{ title }}" required>
+    </div>
+
+    <div class="form-group">
+      <label for="description">説明</label>
+      <textarea id="description" name="description" rows="3" required>{{ description }}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="type">タイプ</label>
+      <select id="type" name="type" required>
+        {% for code, name in type_options %}
+          <option value="{{ code }}" {% if selected_type == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>ステップ構成</label>
+      <div id="steps"></div>
+      <input type="hidden" name="steps_json" id="steps_json">
+      <button type="button" onclick="addStep()">＋ ステップ追加</button>
+    </div>
+
+    <button type="submit">保存する</button>
+  </form>
+
+  <script>
+    let steps = [];
+    const loadedSteps = {{ steps_json | tojson | safe }};
+
+    function updateSteps() {
+      document.getElementById("steps_json").value = JSON.stringify(steps, null, 2);
+    }
+
+    function addStep() {
+      steps.push({ label: '', type: '記述式' });
+      renderSteps();
+    }
+
+    function removeStep(index) {
+      steps.splice(index, 1);
+      renderSteps();
+    }
+
+    function moveStep(index, dir) {
+      const t = index + dir;
+      if (t < 0 || t >= steps.length) return;
+      [steps[index], steps[t]] = [steps[t], steps[index]];
+      renderSteps();
+    }
+
+    function updateField(index, key, value) {
+      steps[index][key] = value;
+      renderSteps();
+    }
+
+    function renderSteps() {
+      const container = document.getElementById("steps");
+      container.innerHTML = "";
+
+      steps.forEach((step, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "step-block";
+
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.placeholder = "ステップの説明";
+        labelInput.value = step.label || "";
+        labelInput.oninput = (e) => updateField(index, 'label', e.target.value);
+        wrapper.appendChild(labelInput);
+
+        const typeSelect = document.createElement("select");
+        ["記述式", "選択式", "グリッド式"].forEach(type => {
+          const opt = document.createElement("option");
+          opt.value = type;
+          opt.textContent = type;
+          if (step.type === type) opt.selected = true;
+          typeSelect.appendChild(opt);
+        });
+        typeSelect.onchange = (e) => {
+          step.type = e.target.value;
+          if (step.type === "選択式") {
+            step.options = step.options || [""];
+            delete step.rows; delete step.cols;
+          } else if (step.type === "グリッド式") {
+            step.rows = step.rows || 2;
+            step.cols = step.cols || 2;
+            delete step.options;
+          } else {
+            delete step.options; delete step.rows; delete step.cols;
+          }
+          renderSteps();
+        };
+        wrapper.appendChild(typeSelect);
+
+        if (step.type === "選択式") {
+          (step.options || []).forEach((opt, optIndex) => {
+            const optInput = document.createElement("input");
+            optInput.type = "text";
+            optInput.value = opt;
+            optInput.placeholder = "選択肢";
+            optInput.oninput = (e) => {
+              step.options[optIndex] = e.target.value;
+              updateSteps();
+            };
+            wrapper.appendChild(optInput);
+          });
+          const addOption = document.createElement("button");
+          addOption.textContent = "＋選択肢";
+          addOption.type = "button";
+          addOption.onclick = () => {
+            step.options.push("");
+            renderSteps();
+          };
+          wrapper.appendChild(addOption);
+        }
+
+        if (step.type === "グリッド式") {
+          const rowLabel = document.createElement("label");
+          rowLabel.textContent = "行（縦）";
+          const rowInput = document.createElement("input");
+          rowInput.type = "number";
+          rowInput.min = 1;
+          rowInput.value = step.rows || 2;
+          rowInput.oninput = (e) => {
+            updateField(index, 'rows', parseInt(e.target.value));
+            renderSteps();
+          };
+
+          const colLabel = document.createElement("label");
+          colLabel.textContent = "列（横）";
+          const colInput = document.createElement("input");
+          colInput.type = "number";
+          colInput.min = 1;
+          colInput.value = step.cols || 2;
+          colInput.oninput = (e) => {
+            updateField(index, 'cols', parseInt(e.target.value));
+            renderSteps();
+          };
+
+          wrapper.appendChild(rowLabel);
+          wrapper.appendChild(rowInput);
+          wrapper.appendChild(colLabel);
+          wrapper.appendChild(colInput);
+        }
+
+        const controlBox = document.createElement("div");
+        const upBtn = document.createElement("button");
+        upBtn.textContent = "↑";
+        upBtn.type = "button";
+        upBtn.onclick = () => moveStep(index, -1);
+
+        const downBtn = document.createElement("button");
+        downBtn.textContent = "↓";
+        downBtn.type = "button";
+        downBtn.onclick = () => moveStep(index, 1);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "削除";
+        delBtn.type = "button";
+        delBtn.onclick = () => removeStep(index);
+
+        controlBox.appendChild(upBtn);
+        controlBox.appendChild(downBtn);
+        controlBox.appendChild(delBtn);
+        wrapper.appendChild(controlBox);
+
+        container.appendChild(wrapper);
+      });
+
+      updateSteps();
+    }
+
+    steps = [...loadedSteps];
+    renderSteps();
+  </script>
+</body>
+</html>
