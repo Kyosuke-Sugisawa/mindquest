@@ -889,7 +889,6 @@ def quest_do(quest_id):
 
     return render_template("quest_do.html", quest=quest, steps=steps)
 
-
 @app.route("/quest/feedback/<int:quest_id>", methods=["GET", "POST"])
 def quest_feedback(quest_id):
     conn = get_db_connection()
@@ -905,30 +904,29 @@ def quest_feedback(quest_id):
     steps = json.loads(row["steps_json"]) if row["steps_json"] else []
 
     summary = []
-for i, step in enumerate(steps):
-    step_type = step.get("type")
+    for i, step in enumerate(steps):
+        step_type = step.get("type")
 
-    if step_type == "グリッド式":
-        rows = int(step.get("rows", 2))
-        cols = int(step.get("cols", 2))
-        grid = []
-        for r in range(rows):
-            row_data = []
-            for c in range(cols):
-                val = request.form.get(f"step_{i}_r{r}c{c}", "")
-                row_data.append(val)
-            grid.append(row_data)
-        answer = "\n".join(["｜".join(r) for r in grid])
-    else:
-        # 記述式・選択式共通
-        answer = request.form.get(f"step_{i}", "")
+        if step_type == "グリッド式":
+            rows = int(step.get("rows", 2))
+            cols = int(step.get("cols", 2))
+            grid = []
+            for r in range(rows):
+                row_data = []
+                for c in range(cols):
+                    val = request.form.get(f"step_{i}_r{r}c{c}", "")
+                    row_data.append(val)
+                grid.append(row_data)
+            answer = "\n".join(["｜".join(r) for r in grid])
+        else:
+            answer = request.form.get(f"step_{i}", "")
 
-    if answer.strip():
-        summary.append(answer.strip())
+        if answer.strip():
+            summary.append(answer.strip())
 
-text = "\n".join(summary)
+    text = "\n".join(summary)
 
-prompt = f"""
+    prompt = f"""
 以下は、ユーザーが自己理解ワーク（クエスト）に回答した内容です。
 それぞれの回答には元の質問文が存在しますが、今回は回答内容のみを元に、ユーザーへのやさしいフィードバックを作成してください。
 
@@ -944,8 +942,6 @@ prompt = f"""
 【ユーザーの回答】
 {text}
 """
-
-
 
     try:
         model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
@@ -973,7 +969,6 @@ prompt = f"""
         feedback = f"[エラー] {e}"
 
     return render_template("quest_feedback.html", title=title, feedback=feedback)
-
 
 
 @app.route("/admin/quests/delete/<int:quest_id>", methods=["POST"])
